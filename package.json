@@ -30,5 +30,11 @@
   },
   "peerDependencies": {
     "react": "^18"
-  }
+  },
+  "keywords": [
+    "react",
+    "contexts",
+    "context composer",
+    "context compose"
+  ]
 }
