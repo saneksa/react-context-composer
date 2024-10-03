@@ -12,11 +12,12 @@ type ContextValues<
 
 export function composeContexts<
   V extends readonly (readonly [Context<any>, any])[],
->(children: ReactNode, wrappers: ContextValues<V>) {
-  return wrappers.reduceRight(
-    (acc, [Context, value]) => (
-      <Context.Provider value={value}>{acc}</Context.Provider>
-    ),
-    children
-  );
+>(wrappers: ContextValues<V>) {
+  return (children: ReactNode) =>
+    wrappers.reduceRight(
+      (acc, [Context, value]) => (
+        <Context.Provider value={value}>{acc}</Context.Provider>
+      ),
+      children
+    );
 }

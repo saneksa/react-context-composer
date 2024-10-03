@@ -29,13 +29,12 @@ function App() {
     [LanguageContext, Languages.cn],
   ] as const;
 
-  return composeContexts<typeof contexts>(
+  return composeContexts<typeof contexts>(contexts)(
     <div>
       <Children />
       <br />
       ...child elements using contexts
-    </div>,
-    contexts
+    </div>
   );
 }
 ```
