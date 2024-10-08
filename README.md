@@ -24,12 +24,10 @@ See it in action at [codesandbox](https://codesandbox.io/p/sandbox/nostalgic-pla
 
 ```jsx
 function App() {
-  const contexts = [
+  return composeContexts([
     [ThemeContext, theme[Theme.red]],
     [LanguageContext, Languages.cn],
-  ] as const;
-
-  return composeContexts<typeof contexts>(contexts)(
+  ])(
     <div>
       <Children />
       <br />
