@@ -11,11 +11,14 @@ type ContextValues<T> = {
 } & ReadonlyArray<ContextTuple<any>>;
 
 export function composeContexts<const T extends ContextValues<T>>(wrappers: T) {
-  return (children: ReactNode) =>
-    wrappers.reduceRight(
-      (acc, [Context, value]) => (
-        <Context.Provider value={value}>{acc}</Context.Provider>
-      ),
-      children
-    );
+  return (children: ReactNode) => (
+    <>
+      {wrappers.reduceRight(
+        (acc, [Context, value]) => (
+          <Context.Provider value={value}>{acc}</Context.Provider>
+        ),
+        children
+      )}
+    </>
+  );
 }
