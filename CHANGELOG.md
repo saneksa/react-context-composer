@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.1.1](https://github.com/saneksa/react-context-composer/compare/v2.1.0...v2.1.1) (2025-03-06)
+
+
+### Bug Fixes
+
+* исправлена установка типов react ([86da149](https://github.com/saneksa/react-context-composer/commit/86da1495ee08c981bb564aa42de66d0783db1404))
+
 ## [2.1.0](https://github.com/saneksa/react-context-composer/compare/v2.0.0...v2.1.0) (2024-10-08)
 
 
