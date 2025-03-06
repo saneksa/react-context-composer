@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.2.0](https://github.com/saneksa/react-context-composer/compare/v2.1.1...v2.2.0) (2025-03-06)
+
+
+### Features
+
+* добавлена обертка по фрагмент ([86cecf1](https://github.com/saneksa/react-context-composer/commit/86cecf1e1431553c4857b9630ee4591d10647d8e))
+
 ### [2.1.1](https://github.com/saneksa/react-context-composer/compare/v2.1.0...v2.1.1) (2025-03-06)
 
 
