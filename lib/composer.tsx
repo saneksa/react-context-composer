@@ -17,7 +17,7 @@ export function composeContexts<const T extends ContextValues<T>>(wrappers: T) {
         (acc, [Context, value]) => (
           <Context.Provider value={value}>{acc}</Context.Provider>
         ),
-        children
+        children,
       )}
     </>
   );

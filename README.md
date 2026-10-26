@@ -32,7 +32,7 @@ function App() {
       <Children />
       <br />
       ...child elements using contexts
-    </div>
+    </div>,
   );
 }
 ```

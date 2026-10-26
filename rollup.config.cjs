@@ -1,5 +1,5 @@
 const packageJSON = require("./package.json");
-const typescript = require("@rollup/plugin-typescript");
+const { default: esbuild } = require("rollup-plugin-esbuild");
 const resolve = require("@rollup/plugin-node-resolve");
 const commonjs = require("@rollup/plugin-commonjs");
 const { dts } = require("rollup-plugin-dts");
@@ -11,7 +11,7 @@ const externalPackages = [
 ];
 
 const regexesOfPackages = externalPackages.map(
-  (packageName) => new RegExp(`^${packageName}(\/.*)?`)
+  (packageName) => new RegExp(`^${packageName}(/.*)?`),
 );
 
 /** @type {import("rollup").RollupOptions[]} */
@@ -33,20 +33,18 @@ const config = [
 
     plugins: [
       del({ targets: "dist", hook: "buildStart", runOnce: true }),
-      typescript(),
       resolve(),
       commonjs(),
+      esbuild({ tsconfig: "tsconfig.json" }),
     ],
 
     external: regexesOfPackages,
   },
   {
-    input: "dist/dts/index.d.ts",
+    input: "lib/index.ts",
     output: [{ file: "dist/index.d.ts", format: "es" }],
-    plugins: [
-      dts(),
-      del({ targets: "dist/dts", hook: "buildEnd", runOnce: true }),
-    ],
+    plugins: [dts()],
+    external: regexesOfPackages,
   },
 ];
 

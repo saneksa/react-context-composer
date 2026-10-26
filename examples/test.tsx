@@ -11,7 +11,7 @@ enum Languages {
 const ThemeContext = createContext(number);
 const LanguageContext = createContext<Languages>(Languages.en);
 
-const Component = () => {
+export const Component = () => {
   return composeContexts([
     [ThemeContext, 15],
     [LanguageContext, Languages.en],
@@ -20,6 +20,6 @@ const Component = () => {
       <div>qweqeqe</div>
       <br />
       ...child elements using contexts
-    </div>
+    </div>,
   );
 };
