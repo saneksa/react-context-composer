@@ -7,12 +7,13 @@ import {
   Suspense,
   useContext,
   useState,
+  version,
   type ReactNode,
 } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { describe, expect, it, vi } from "vitest";
 import { composeContexts } from "../lib";
+import { mount } from "./dom";
 
 const NumberContext = createContext(0);
 const StringContext = createContext("default");
@@ -38,7 +39,6 @@ const Deep = () => (
 
 const render = (node: ReactNode) => renderToStaticMarkup(<>{node}</>);
 
-// Separate contexts for react-test-renderer: sharing a context between two renderers triggers a warning.
 const CountContext = createContext(0);
 const LabelContext = createContext("default");
 const ReadCount = () => <>{useContext(CountContext)}</>;
@@ -54,14 +54,6 @@ const RemembersFirstCount = () => {
   const count = useContext(CountContext);
   const [first] = useState(count);
   return <>{`${count}:${first}`}</>;
-};
-
-const renderTree = (node: ReactNode) => {
-  let renderer!: ReactTestRenderer;
-  act(() => {
-    renderer = create(<>{node}</>);
-  });
-  return renderer;
 };
 
 describe("composeContexts", () => {
@@ -314,7 +306,16 @@ describe("composeContexts", () => {
       expect(render(composeContexts([[NumberContext, 9]])(<MemoReadNumber />))).toBe("9");
     });
 
-    it("works inside StrictMode and Suspense", () => {
+    it("works inside StrictMode", () => {
+      const html = render(
+        <StrictMode>{composeContexts([[NumberContext, 10]])(<ReadNumber />)}</StrictMode>,
+      );
+
+      expect(html).toBe("10");
+    });
+
+    // ReactDOMServer supports Suspense since React 18.
+    it.skipIf(Number.parseInt(version) < 18)("works inside StrictMode and Suspense", () => {
       const html = render(
         <StrictMode>
           {composeContexts([[NumberContext, 10]])(
@@ -356,67 +357,77 @@ describe("composeContexts", () => {
   });
 
   describe("updates", () => {
-    it("passes a new value to consumers on re-render", () => {
-      const renderer = renderTree(composeContexts([[CountContext, 1]])(<ReadCount />));
+    it("passes a new value to consumers on re-render", async () => {
+      const view = await mount(composeContexts([[CountContext, 1]])(<ReadCount />));
+      expect(view.text).toBe("1");
 
-      expect(renderer.toJSON()).toBe("1");
-
-      act(() => {
-        renderer.update(<>{composeContexts([[CountContext, 2]])(<ReadCount />)}</>);
-      });
-
-      expect(renderer.toJSON()).toBe("2");
+      view.update(composeContexts([[CountContext, 2]])(<ReadCount />));
+      expect(view.text).toBe("2");
+      view.unmount();
     });
 
-    it("passes values from props of a parent component", () => {
-      const renderer = renderTree(<CountRoot count={0} />);
-      expect(renderer.toJSON()).toBe("0");
+    it("passes values from props of a parent component", async () => {
+      const view = await mount(<CountRoot count={0} />);
+      expect(view.text).toBe("0");
 
-      act(() => renderer.update(<CountRoot count={1} />));
-      expect(renderer.toJSON()).toBe("1");
+      view.update(<CountRoot count={1} />);
+      expect(view.text).toBe("1");
+      view.unmount();
     });
 
-    it("keeps the state of children when values change", () => {
-      const renderer = renderTree(<CountRoot count={1} child={<RemembersFirstCount />} />);
-      expect(renderer.toJSON()).toBe("1:1");
+    it("keeps the state of children when values change", async () => {
+      const view = await mount(<CountRoot count={1} child={<RemembersFirstCount />} />);
+      expect(view.text).toBe("1:1");
 
-      act(() => renderer.update(<CountRoot count={2} child={<RemembersFirstCount />} />));
-      expect(renderer.toJSON()).toBe("2:1");
+      view.update(<CountRoot count={2} child={<RemembersFirstCount />} />);
+      expect(view.text).toBe("2:1");
+      view.unmount();
     });
 
-    it("does not re-render memo children that do not read the changed context", () => {
+    it("keeps DOM nodes of children when values change", async () => {
+      const view = await mount(<CountRoot count={1} child={<span id="child" />} />);
+      const before = document.getElementById("child");
+
+      view.update(<CountRoot count={2} child={<span id="child" />} />);
+      expect(document.getElementById("child")).toBe(before);
+      view.unmount();
+    });
+
+    it("does not re-render memo children that do not read the changed context", async () => {
       const renders = vi.fn();
       const Static = memo(() => {
         renders();
         return <ReadLabel />;
       });
 
-      const renderer = renderTree(<CountRoot count={1} child={<Static />} />);
-      act(() => renderer.update(<CountRoot count={2} child={<Static />} />));
+      const view = await mount(<CountRoot count={1} child={<Static />} />);
+      view.update(<CountRoot count={2} child={<Static />} />);
 
       expect(renders).toHaveBeenCalledTimes(1);
-      expect(renderer.toJSON()).toBe("static");
+      expect(view.text).toBe("static");
+      view.unmount();
     });
 
-    it("re-renders memo children that read the changed context", () => {
+    it("re-renders memo children that read the changed context", async () => {
       const renders = vi.fn();
       const Dynamic = memo(() => {
         renders();
         return <>{useContext(CountContext)}</>;
       });
 
-      const renderer = renderTree(<CountRoot count={1} child={<Dynamic />} />);
-      act(() => renderer.update(<CountRoot count={2} child={<Dynamic />} />));
+      const view = await mount(<CountRoot count={1} child={<Dynamic />} />);
+      view.update(<CountRoot count={2} child={<Dynamic />} />);
 
       expect(renders).toHaveBeenCalledTimes(2);
-      expect(renderer.toJSON()).toBe("2");
+      expect(view.text).toBe("2");
+      view.unmount();
     });
 
-    it("unmounts without errors", () => {
-      const renderer = renderTree(<CountRoot count={1} />);
+    it("unmounts without errors", async () => {
+      const view = await mount(<CountRoot count={1} />);
 
-      expect(() => act(() => renderer.unmount())).not.toThrow();
-      expect(renderer.toJSON()).toBeNull();
+      expect(() => view.unmount()).not.toThrow();
+      expect(view.text).toBe("");
     });
   });
 

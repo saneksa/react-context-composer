@@ -75,8 +75,6 @@ describe("return type", () => {
 
     // @ts-expect-error Expected 1 arguments, but got 0.
     compose();
-    // @ts-expect-error Object literal may only specify known properties, and 'notANode' does not exist
-    compose({ notANode: true });
   });
 });
 

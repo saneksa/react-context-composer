@@ -1,0 +1,11 @@
+{
+  "name": "react-compat-19",
+  "private": true,
+  "description": "React 19 for compatibility tests, see vitest.config.mts",
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "react": "^19",
+    "react-dom": "^19"
+  }
+}

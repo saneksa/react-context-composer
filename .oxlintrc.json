@@ -12,5 +12,5 @@
     "builtin": true,
     "browser": true
   },
-  "ignorePatterns": ["dist"]
+  "ignorePatterns": ["dist", "compat/*/node_modules"]
 }
