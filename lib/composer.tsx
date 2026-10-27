@@ -1,16 +1,12 @@
 import { type Context, type ReactNode } from "react";
 
-type ContextTuple<C, V = C> = readonly [Context<C>, V];
+type ContextTuple<C> = readonly [Context<C>, NoInfer<C>];
 
-type ContextValues<T> = {
-  [K in keyof T]: T[K] extends ContextTuple<infer C, infer V>
-    ? V extends C
-      ? ContextTuple<C, V>
-      : ContextTuple<C>
-    : ContextTuple<any>;
-} & ReadonlyArray<ContextTuple<any>>;
+type ContextValues<T extends readonly unknown[]> = {
+  readonly [K in keyof T]: ContextTuple<T[K]>;
+};
 
-export function composeContexts<const T extends ContextValues<T>>(wrappers: T) {
+export function composeContexts<const T extends readonly unknown[]>(wrappers: ContextValues<T>) {
   return (children: ReactNode) => (
     <>
       {wrappers.reduceRight(

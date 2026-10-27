@@ -5,5 +5,5 @@
     "noEmit": true,
     "types": []
   },
-  "include": ["lib", "tests", "examples"]
+  "include": ["lib", "tests", "typetests", "examples"]
 }
