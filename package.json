@@ -20,7 +20,7 @@
   "scripts": {
     "build": "rollup -c",
     "lint": "npm run typecheck && oxlint",
-    "release": "npm run lint && npm run format:check && npm run test && standard-version && npm run build",
+    "release": "npm run lint && npm run format:check && npm run compat:install && npm run test:all && standard-version && npm run build",
     "prepublishOnly": "npm run build",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
     "format": "oxfmt",
