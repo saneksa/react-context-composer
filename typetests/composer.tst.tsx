@@ -39,157 +39,172 @@ describe("return type", () => {
   test("accepts any ReactNode as children", () => {
     const compose = composeContexts([[NumberContext, 1]]);
 
-    expect(compose).type.toBeCallableWith(null);
-    expect(compose).type.toBeCallableWith(undefined);
-    expect(compose).type.toBeCallableWith("text");
-    expect(compose).type.toBeCallableWith(1);
-    expect(compose).type.toBeCallableWith(false);
-    expect(compose).type.toBeCallableWith([<i key="a" />, "b"]);
-    expect(compose).type.toBeCallableWith(<div />);
+    compose(null);
+    compose(undefined);
+    compose("text");
+    compose(1);
+    compose(false);
+    compose([<i key="a" />, "b"]);
+    compose(<div />);
 
-    expect(compose).type.not.toBeCallableWith();
-    expect(compose).type.not.toBeCallableWith({ notANode: true });
+    // @ts-expect-error Expected 1 arguments, but got 0.
+    compose();
+    // @ts-expect-error Object literal may only specify known properties, and 'notANode' does not exist
+    compose({ notANode: true });
   });
 });
 
 describe("primitive values", () => {
   test("number", () => {
-    expect(composeContexts).type.toBeCallableWith([[NumberContext, 1]]);
-    expect(composeContexts).type.toBeCallableWith([[NumberContext, 0]]);
-    expect(composeContexts).type.toBeCallableWith([[NumberContext, Number.NaN]]);
+    composeContexts([[NumberContext, 1]]);
+    composeContexts([[NumberContext, 0]]);
+    composeContexts([[NumberContext, Number.NaN]]);
 
-    expect(composeContexts).type.not.toBeCallableWith([[NumberContext, "1"]]);
-    expect(composeContexts).type.not.toBeCallableWith([[NumberContext, null]]);
-    expect(composeContexts).type.not.toBeCallableWith([[NumberContext, undefined]]);
+    // @ts-expect-error Type 'string' is not assignable to type 'number'.
+    composeContexts([[NumberContext, "1"]]);
+    // @ts-expect-error Type 'null' is not assignable to type 'number'.
+    composeContexts([[NumberContext, null]]);
+    // @ts-expect-error Type 'undefined' is not assignable to type 'number'.
+    composeContexts([[NumberContext, undefined]]);
   });
 
   test("string", () => {
-    expect(composeContexts).type.toBeCallableWith([[StringContext, "text"]]);
-    expect(composeContexts).type.toBeCallableWith([[StringContext, ""]]);
+    composeContexts([[StringContext, "text"]]);
+    composeContexts([[StringContext, ""]]);
 
-    expect(composeContexts).type.not.toBeCallableWith([[StringContext, 1]]);
+    // @ts-expect-error Type 'number' is not assignable to type 'string'.
+    composeContexts([[StringContext, 1]]);
   });
 
   test("literal union", () => {
-    expect(composeContexts).type.toBeCallableWith([[LiteralContext, "dark"]]);
+    composeContexts([[LiteralContext, "dark"]]);
 
-    expect(composeContexts).type.not.toBeCallableWith([[LiteralContext, "blue"]]);
+    // @ts-expect-error Type '"blue"' is not assignable to type
+    composeContexts([[LiteralContext, "blue"]]);
   });
 
   test("literal union does not accept a wider type", () => {
     const value = "dark" as string;
 
-    expect(composeContexts).type.not.toBeCallableWith([[LiteralContext, value]]);
+    // @ts-expect-error Type 'string' is not assignable to type
+    composeContexts([[LiteralContext, value]]);
   });
 
   test("enum", () => {
-    expect(composeContexts).type.toBeCallableWith([[EnumContext, Language.ru]]);
+    composeContexts([[EnumContext, Language.ru]]);
 
-    expect(composeContexts).type.not.toBeCallableWith([[EnumContext, "ru"]]);
+    // @ts-expect-error Type '"ru"' is not assignable to type 'Language'.
+    composeContexts([[EnumContext, "ru"]]);
   });
 });
 
 describe("nullable values", () => {
   test("string | null", () => {
-    expect(composeContexts).type.toBeCallableWith([[NullableContext, null]]);
-    expect(composeContexts).type.toBeCallableWith([[NullableContext, "text"]]);
+    composeContexts([[NullableContext, null]]);
+    composeContexts([[NullableContext, "text"]]);
 
-    expect(composeContexts).type.not.toBeCallableWith([[NullableContext, 1]]);
-    expect(composeContexts).type.not.toBeCallableWith([[NullableContext, undefined]]);
+    // @ts-expect-error Type 'number' is not assignable to type 'string'.
+    composeContexts([[NullableContext, 1]]);
+    // @ts-expect-error Type 'undefined' is not assignable to type 'string | null'.
+    composeContexts([[NullableContext, undefined]]);
   });
 
   test("number | undefined", () => {
-    expect(composeContexts).type.toBeCallableWith([[OptionalContext, undefined]]);
-    expect(composeContexts).type.toBeCallableWith([[OptionalContext, 1]]);
+    composeContexts([[OptionalContext, undefined]]);
+    composeContexts([[OptionalContext, 1]]);
 
-    expect(composeContexts).type.not.toBeCallableWith([[OptionalContext, null]]);
+    // @ts-expect-error Type 'null' is not assignable to type 'number | undefined'.
+    composeContexts([[OptionalContext, null]]);
   });
 
   test("non-nullable object", () => {
-    expect(composeContexts).type.not.toBeCallableWith([[ObjectContext, null]]);
+    // @ts-expect-error Type 'null' is not assignable to type 'Theme'.
+    composeContexts([[ObjectContext, null]]);
   });
 });
 
 describe("object values", () => {
   test("required and optional fields", () => {
-    expect(composeContexts).type.toBeCallableWith([[ObjectContext, { color: "blue" }]]);
-    expect(composeContexts).type.toBeCallableWith([[ObjectContext, { color: "blue", size: 1 }]]);
+    composeContexts([[ObjectContext, { color: "blue" }]]);
+    composeContexts([[ObjectContext, { color: "blue", size: 1 }]]);
 
-    expect(composeContexts).type.not.toBeCallableWith([[ObjectContext, {}]]);
-    expect(composeContexts).type.not.toBeCallableWith([[ObjectContext, { color: 1 }]]);
-    expect(composeContexts).type.not.toBeCallableWith([
-      [ObjectContext, { color: "red", size: "big" }],
-    ]);
+    // @ts-expect-error Property 'color' is missing in type '{}' but required in type 'Theme'.
+    composeContexts([[ObjectContext, {}]]);
+    // @ts-expect-error Type 'number' is not assignable to type 'string'.
+    composeContexts([[ObjectContext, { color: 1 }]]);
+    // @ts-expect-error Type 'string' is not assignable to type 'number'.
+    composeContexts([[ObjectContext, { color: "red", size: "big" }]]);
   });
 
   test("excess properties", () => {
-    expect(composeContexts).type.not.toBeCallableWith([
-      [ObjectContext, { color: "red", extra: true }],
-    ]);
-    expect(composeContexts).type.not.toBeCallableWith([[ObjectContext, { color: "red", sise: 1 }]]);
+    // @ts-expect-error Object literal may only specify known properties, and 'extra' does not exist in type 'Theme'.
+    composeContexts([[ObjectContext, { color: "red", extra: true }]]);
+    // @ts-expect-error Object literal may only specify known properties, and 'sise' does not exist in type 'Theme'.
+    composeContexts([[ObjectContext, { color: "red", sise: 1 }]]);
   });
 
   test("excess properties in nested objects", () => {
-    expect(composeContexts).type.toBeCallableWith([[NestedContext, { user: { name: "a" } }]]);
+    composeContexts([[NestedContext, { user: { name: "a" } }]]);
 
-    expect(composeContexts).type.not.toBeCallableWith([
-      [NestedContext, { user: { name: "a", age: 1 } }],
-    ]);
+    // @ts-expect-error Object literal may only specify known properties, and 'age' does not exist in type '{ name: string; }'.
+    composeContexts([[NestedContext, { user: { name: "a", age: 1 } }]]);
   });
 
   test("excess properties are allowed for values from variables, like in Provider", () => {
     const theme: Theme & { extra: boolean } = { color: "red", extra: true };
 
-    expect(composeContexts).type.toBeCallableWith([[ObjectContext, theme]]);
+    composeContexts([[ObjectContext, theme]]);
   });
 
   test("discriminated union", () => {
-    expect(composeContexts).type.toBeCallableWith([[UnionContext, { kind: "a", a: 1 }]]);
-    expect(composeContexts).type.toBeCallableWith([[UnionContext, { kind: "b", b: "x" }]]);
+    composeContexts([[UnionContext, { kind: "a", a: 1 }]]);
+    composeContexts([[UnionContext, { kind: "b", b: "x" }]]);
 
-    expect(composeContexts).type.not.toBeCallableWith([[UnionContext, { kind: "a", b: "x" }]]);
-    expect(composeContexts).type.not.toBeCallableWith([[UnionContext, { kind: "c" }]]);
+    // @ts-expect-error Object literal may only specify known properties, and 'b' does not exist in type '{ kind: "a"; a: number; }'.
+    composeContexts([[UnionContext, { kind: "a", b: "x" }]]);
+    // @ts-expect-error Type '"c"' is not assignable to type '"a" | "b"'.
+    composeContexts([[UnionContext, { kind: "c" }]]);
   });
 });
 
 describe("array values", () => {
   test("array", () => {
-    expect(composeContexts).type.toBeCallableWith([[ArrayContext, []]]);
-    expect(composeContexts).type.toBeCallableWith([[ArrayContext, [1, 2, 3]]]);
+    composeContexts([[ArrayContext, []]]);
+    composeContexts([[ArrayContext, [1, 2, 3]]]);
 
-    expect(composeContexts).type.not.toBeCallableWith([[ArrayContext, ["1"]]]);
+    // @ts-expect-error Type 'string' is not assignable to type 'number'.
+    composeContexts([[ArrayContext, ["1"]]]);
   });
 
   test("readonly array", () => {
-    expect(composeContexts).type.toBeCallableWith([[ReadonlyArrayContext, ["a"]]]);
+    composeContexts([[ReadonlyArrayContext, ["a"]]]);
 
-    expect(composeContexts).type.not.toBeCallableWith([[ReadonlyArrayContext, [1]]]);
+    // @ts-expect-error Type 'number' is not assignable to type 'string'.
+    composeContexts([[ReadonlyArrayContext, [1]]]);
   });
 
   test("tuple", () => {
-    expect(composeContexts).type.toBeCallableWith([[TupleContext, [1, "a"]]]);
+    composeContexts([[TupleContext, [1, "a"]]]);
 
-    expect(composeContexts).type.not.toBeCallableWith([[TupleContext, ["a", 1]]]);
-    expect(composeContexts).type.not.toBeCallableWith([[TupleContext, [1]]]);
+    // @ts-expect-error Type 'string' is not assignable to type 'number'.
+    composeContexts([[TupleContext, ["a", "b"]]]);
+    // @ts-expect-error Type '[number]' is not assignable to type '[number, string]'.
+    composeContexts([[TupleContext, [1]]]);
   });
 });
 
 describe("function values", () => {
   test("compatible signatures", () => {
-    expect(composeContexts).type.toBeCallableWith([
-      [FunctionContext, (value: number) => value.toFixed()],
-    ]);
-    expect(composeContexts).type.toBeCallableWith([[FunctionContext, () => "constant"]]);
-    expect(composeContexts).type.toBeCallableWith([[FunctionContext, String]]);
+    composeContexts([[FunctionContext, (value: number) => value.toFixed()]]);
+    composeContexts([[FunctionContext, () => "constant"]]);
+    composeContexts([[FunctionContext, String]]);
   });
 
   test("incompatible signatures", () => {
-    expect(composeContexts).type.not.toBeCallableWith([
-      [FunctionContext, (value: string) => value],
-    ]);
-    expect(composeContexts).type.not.toBeCallableWith([
-      [FunctionContext, (value: number) => value],
-    ]);
+    // @ts-expect-error Type '(value: string) => string' is not assignable to type '(value: number) => string'.
+    composeContexts([[FunctionContext, (value: string) => value]]);
+    // @ts-expect-error Type '(value: number) => number' is not assignable to type '(value: number) => string'.
+    composeContexts([[FunctionContext, (value: number) => value]]);
   });
 
   test("infers the parameter type from the context", () => {
@@ -237,8 +252,6 @@ describe("function values", () => {
     ]);
   });
 
-  // Contextual typing does not reach arguments of `toBeCallableWith()`,
-  // so inferred parameters are checked with direct calls.
   test("rejects wrong usage of an inferred parameter", () => {
     // @ts-expect-error Property 'toUpperCase' does not exist on type 'number'.
     composeContexts([[FunctionContext, (value) => value.toUpperCase()]]);
@@ -247,19 +260,19 @@ describe("function values", () => {
 
 describe("unknown and any", () => {
   test("accept any value", () => {
-    expect(composeContexts).type.toBeCallableWith([[UnknownContext, { anything: true }]]);
-    expect(composeContexts).type.toBeCallableWith([[UnknownContext, null]]);
-    expect(composeContexts).type.toBeCallableWith([[AnyContext, 1]]);
+    composeContexts([[UnknownContext, { anything: true }]]);
+    composeContexts([[UnknownContext, null]]);
+    composeContexts([[AnyContext, 1]]);
   });
 });
 
 describe("lists", () => {
   test("empty list", () => {
-    expect(composeContexts).type.toBeCallableWith([]);
+    composeContexts([]);
   });
 
   test("many contexts of different types", () => {
-    expect(composeContexts).type.toBeCallableWith([
+    composeContexts([
       [NumberContext, 1],
       [StringContext, "a"],
       [LiteralContext, "dark"],
@@ -269,26 +282,28 @@ describe("lists", () => {
       [OptionalContext, undefined],
       [ArrayContext, [1]],
       [TupleContext, [1, "a"]],
-      [FunctionContext, (value: number) => value.toFixed()],
+      [FunctionContext, (value) => value.toFixed()],
       [UnionContext, { kind: "b", b: "x" }],
     ]);
   });
 
   test("the same context several times", () => {
-    expect(composeContexts).type.toBeCallableWith([
+    composeContexts([
       [NumberContext, 1],
       [NumberContext, 2],
     ]);
   });
 
   test("a wrong item in the middle of a list", () => {
-    expect(composeContexts).type.not.toBeCallableWith([
+    composeContexts([
       [NumberContext, 1],
+      // @ts-expect-error Type 'number' is not assignable to type 'string'.
       [StringContext, 2],
       [LiteralContext, "dark"],
     ]);
-    expect(composeContexts).type.not.toBeCallableWith([
+    composeContexts([
       [NumberContext, 1],
+      // @ts-expect-error Object literal may only specify known properties, and 'extra' does not exist in type 'Theme'.
       [ObjectContext, { color: "red", extra: true }],
       [StringContext, "a"],
     ]);
@@ -304,16 +319,18 @@ describe("lists", () => {
       [LiteralContext, "blue"],
     ] as const;
 
-    expect(composeContexts).type.toBeCallableWith(valid);
-    expect(composeContexts).type.not.toBeCallableWith(invalid);
+    composeContexts(valid);
+    // @ts-expect-error Argument of type 'readonly [readonly [Context<number>, 1], readonly [Context<
+    composeContexts(invalid);
   });
 
   test("a typed dynamic list", () => {
     const valid: Array<readonly [Context<number>, number]> = [];
     const invalid: Array<readonly [Context<number>, string]> = [];
 
-    expect(composeContexts).type.toBeCallableWith(valid);
-    expect(composeContexts).type.not.toBeCallableWith(invalid);
+    composeContexts(valid);
+    // @ts-expect-error Argument of type '(readonly [Context<number>, string])[]' is not assignable
+    composeContexts(invalid);
   });
 
   test("values from variables", () => {
@@ -323,42 +340,52 @@ describe("lists", () => {
     const theme: Theme = { color: "green" };
     const wrong: string = "1";
 
-    expect(composeContexts).type.toBeCallableWith([[NumberContext, constant]]);
-    expect(composeContexts).type.toBeCallableWith([[NumberContext, mutable]]);
-    expect(composeContexts).type.toBeCallableWith([[ObjectContext, theme]]);
+    composeContexts([[NumberContext, constant]]);
+    composeContexts([[NumberContext, mutable]]);
+    composeContexts([[ObjectContext, theme]]);
 
-    expect(composeContexts).type.not.toBeCallableWith([[NumberContext, wrong]]);
+    // @ts-expect-error Type 'string' is not assignable to type 'number'.
+    composeContexts([[NumberContext, wrong]]);
   });
 
   test("a context typed via Context<T>", () => {
     const context: Context<string> = StringContext;
 
-    expect(composeContexts).type.toBeCallableWith([[context, "a"]]);
-    expect(composeContexts).type.not.toBeCallableWith([[context, 1]]);
+    composeContexts([[context, "a"]]);
+    // @ts-expect-error Type 'number' is not assignable to type 'string'.
+    composeContexts([[context, 1]]);
   });
 });
 
 describe("list shape", () => {
   test("rejects a tuple without a value", () => {
-    expect(composeContexts).type.not.toBeCallableWith([[NumberContext]]);
+    // @ts-expect-error Type 'Context<number>' is not assignable to type 'Context<unknown>'.
+    composeContexts([[NumberContext]]);
   });
 
   test("rejects a tuple with extra items", () => {
-    expect(composeContexts).type.not.toBeCallableWith([[NumberContext, 1, 2]]);
+    // @ts-expect-error Type 'Context<number>' is not assignable to type 'Context<unknown>'.
+    composeContexts([[NumberContext, 1, 2]]);
   });
 
   test("rejects something that is not a context", () => {
-    expect(composeContexts).type.not.toBeCallableWith([[1, 1]]);
-    expect(composeContexts).type.not.toBeCallableWith([[{ Provider: null }, 1]]);
+    // @ts-expect-error Type 'number' is not assignable to type 'Context<unknown>'.
+    composeContexts([[1, 1]]);
+    // @ts-expect-error Type 'null' is not assignable to type 'Provider<unknown>'.
+    composeContexts([[{ Provider: null }, 1]]);
   });
 
   test("rejects a context without a tuple", () => {
-    expect(composeContexts).type.not.toBeCallableWith([NumberContext]);
+    // @ts-expect-error Type 'Context<number>' is not assignable to type 'ContextTuple<unknown>'.
+    composeContexts([NumberContext]);
   });
 
   test("rejects a non-list argument", () => {
-    expect(composeContexts).type.not.toBeCallableWith([NumberContext, 1] as const);
-    expect(composeContexts).type.not.toBeCallableWith(NumberContext);
-    expect(composeContexts).type.not.toBeCallableWith();
+    // @ts-expect-error Argument of type 'string' is not assignable to parameter of type
+    composeContexts("not a list");
+    // @ts-expect-error Type 'Context<number>' is missing the following properties from type 'readonly
+    composeContexts(NumberContext);
+    // @ts-expect-error Expected 1 arguments, but got 0.
+    composeContexts();
   });
 });
