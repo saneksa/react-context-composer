@@ -20,13 +20,19 @@
   "scripts": {
     "build": "rollup -c",
     "lint": "npm run typecheck && oxlint",
-    "release": "npm run lint && npm run format:check && npm run test && standard-version && npm run build",
+    "release": "npm run lint && npm run format:check && npm run compat:install && npm run test:all && standard-version && npm run build",
     "prepublishOnly": "npm run build",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "vitest run && tstyche",
+    "test:watch": "vitest",
+    "test:types": "tstyche",
+    "test:types:all": "tstyche --target '>=5.4'",
+    "compat:install": "yarn --cwd compat/react17 install --frozen-lockfile && yarn --cwd compat/react19 install --frozen-lockfile",
+    "test:react17": "REACT_VERSION=17 vitest run && tsc -p compat/react17 && tstyche --tsconfig ./compat/react17/tsconfig.json composer",
+    "test:react19": "REACT_VERSION=19 vitest run && tsc -p compat/react19 && tstyche --tsconfig ./compat/react19/tsconfig.json",
+    "test:all": "yarn test && yarn test:react17 && yarn test:react19 && yarn test:types:all"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.4",
@@ -35,6 +41,7 @@
     "@types/react-dom": "^18",
     "@typescript/typescript6": "^6.0.2",
     "esbuild": "^0.28.2",
+    "happy-dom": "^21.0.4",
     "oxfmt": "^0.74.0",
     "oxlint": "^1.89.0",
     "react": "^18",
@@ -44,6 +51,7 @@
     "rollup-plugin-dts": "^6.5.1",
     "rollup-plugin-esbuild": "^6.2.1",
     "standard-version": "^9.5.0",
+    "tstyche": "^7.2.5",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
     "vitest": "^5.0.5"

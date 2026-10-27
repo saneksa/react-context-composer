@@ -1,7 +1,19 @@
-import { createContext, Fragment, useContext, type ReactNode } from "react";
+import {
+  Component,
+  createContext,
+  Fragment,
+  memo,
+  StrictMode,
+  Suspense,
+  useContext,
+  useState,
+  version,
+  type ReactNode,
+} from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { composeContexts } from "../lib";
+import { mount } from "./dom";
 
 const NumberContext = createContext(0);
 const StringContext = createContext("default");
@@ -26,6 +38,23 @@ const Deep = () => (
 );
 
 const render = (node: ReactNode) => renderToStaticMarkup(<>{node}</>);
+
+const CountContext = createContext(0);
+const LabelContext = createContext("default");
+const ReadCount = () => <>{useContext(CountContext)}</>;
+const ReadLabel = () => <>{useContext(LabelContext)}</>;
+
+const CountRoot = ({ count, child = <ReadCount /> }: { count: number; child?: ReactNode }) =>
+  composeContexts([
+    [CountContext, count],
+    [LabelContext, "static"],
+  ])(child);
+
+const RemembersFirstCount = () => {
+  const count = useContext(CountContext);
+  const [first] = useState(count);
+  return <>{`${count}:${first}`}</>;
+};
 
 describe("composeContexts", () => {
   it("returns a function", () => {
@@ -244,6 +273,177 @@ describe("composeContexts", () => {
       );
 
       expect(html).toBe("-1");
+    });
+  });
+
+  describe("React features", () => {
+    it("works with Context.Consumer", () => {
+      const html = render(
+        composeContexts([[NumberContext, 7]])(
+          <NumberContext.Consumer>{(value) => `consumer=${value}`}</NumberContext.Consumer>,
+        ),
+      );
+
+      expect(html).toBe("consumer=7");
+    });
+
+    it("works with class components and contextType", () => {
+      class ReadNumberClass extends Component {
+        static contextType = NumberContext;
+        declare context: number;
+
+        render() {
+          return `class=${this.context}`;
+        }
+      }
+
+      expect(render(composeContexts([[NumberContext, 8]])(<ReadNumberClass />))).toBe("class=8");
+    });
+
+    it("works with memo components", () => {
+      const MemoReadNumber = memo(ReadNumber);
+
+      expect(render(composeContexts([[NumberContext, 9]])(<MemoReadNumber />))).toBe("9");
+    });
+
+    it("works inside StrictMode", () => {
+      const html = render(
+        <StrictMode>{composeContexts([[NumberContext, 10]])(<ReadNumber />)}</StrictMode>,
+      );
+
+      expect(html).toBe("10");
+    });
+
+    // ReactDOMServer supports Suspense since React 18.
+    it.skipIf(Number.parseInt(version) < 18)("works inside StrictMode and Suspense", () => {
+      const html = render(
+        <StrictMode>
+          {composeContexts([[NumberContext, 10]])(
+            <Suspense fallback="loading">
+              <ReadNumber />
+            </Suspense>,
+          )}
+        </StrictMode>,
+      );
+
+      expect(html).toBe("10");
+    });
+
+    it("renders iterable children", () => {
+      expect(render(composeContexts([[NumberContext, 1]])(new Set(["a", "b"])))).toBe("ab");
+    });
+  });
+
+  describe("element tree", () => {
+    it("returns a fragment without a key", () => {
+      const tree = composeContexts([[NumberContext, 1]])("child");
+
+      expect(tree.key).toBeNull();
+      expect(tree.props.children.key).toBeNull();
+    });
+
+    it("puts children directly into the fragment for an empty list", () => {
+      const tree = composeContexts([])("child");
+
+      expect(tree.type).toBe(Fragment);
+      expect(tree.props.children).toBe("child");
+    });
+
+    it("creates a new tree on every call", () => {
+      const compose = composeContexts([[NumberContext, 1]]);
+
+      expect(compose("a")).not.toBe(compose("a"));
+    });
+  });
+
+  describe("updates", () => {
+    it("passes a new value to consumers on re-render", async () => {
+      const view = await mount(composeContexts([[CountContext, 1]])(<ReadCount />));
+      expect(view.text).toBe("1");
+
+      view.update(composeContexts([[CountContext, 2]])(<ReadCount />));
+      expect(view.text).toBe("2");
+      view.unmount();
+    });
+
+    it("passes values from props of a parent component", async () => {
+      const view = await mount(<CountRoot count={0} />);
+      expect(view.text).toBe("0");
+
+      view.update(<CountRoot count={1} />);
+      expect(view.text).toBe("1");
+      view.unmount();
+    });
+
+    it("keeps the state of children when values change", async () => {
+      const view = await mount(<CountRoot count={1} child={<RemembersFirstCount />} />);
+      expect(view.text).toBe("1:1");
+
+      view.update(<CountRoot count={2} child={<RemembersFirstCount />} />);
+      expect(view.text).toBe("2:1");
+      view.unmount();
+    });
+
+    it("keeps DOM nodes of children when values change", async () => {
+      const view = await mount(<CountRoot count={1} child={<span id="child" />} />);
+      const before = document.getElementById("child");
+
+      view.update(<CountRoot count={2} child={<span id="child" />} />);
+      expect(document.getElementById("child")).toBe(before);
+      view.unmount();
+    });
+
+    it("does not re-render memo children that do not read the changed context", async () => {
+      const renders = vi.fn();
+      const Static = memo(() => {
+        renders();
+        return <ReadLabel />;
+      });
+
+      const view = await mount(<CountRoot count={1} child={<Static />} />);
+      view.update(<CountRoot count={2} child={<Static />} />);
+
+      expect(renders).toHaveBeenCalledTimes(1);
+      expect(view.text).toBe("static");
+      view.unmount();
+    });
+
+    it("re-renders memo children that read the changed context", async () => {
+      const renders = vi.fn();
+      const Dynamic = memo(() => {
+        renders();
+        return <>{useContext(CountContext)}</>;
+      });
+
+      const view = await mount(<CountRoot count={1} child={<Dynamic />} />);
+      view.update(<CountRoot count={2} child={<Dynamic />} />);
+
+      expect(renders).toHaveBeenCalledTimes(2);
+      expect(view.text).toBe("2");
+      view.unmount();
+    });
+
+    it("unmounts without errors", async () => {
+      const view = await mount(<CountRoot count={1} />);
+
+      expect(() => view.unmount()).not.toThrow();
+      expect(view.text).toBe("");
+    });
+  });
+
+  describe("invalid input at runtime", () => {
+    it("throws on render when an item is not a context", () => {
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+      const compose = composeContexts([[{} as never, 1]]);
+
+      expect(() => render(compose("x"))).toThrow(/Element type is invalid/);
+      consoleError.mockRestore();
+    });
+
+    it("throws when the list is not an array", () => {
+      const compose = composeContexts(null as never);
+
+      expect(() => compose("x")).toThrow(TypeError);
     });
   });
 });

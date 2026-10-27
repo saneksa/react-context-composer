@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint, format and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: yarn
+
+      - run: yarn install --frozen-lockfile
+
+      - name: Type check and lint
+        run: yarn lint
+
+      - name: Check formatting
+        run: yarn format:check
+
+      - name: Build
+        run: yarn build
+
+      - name: Check build output
+        run: |
+          for file in dist/index.js dist/index.esm.js dist/index.d.ts; do
+            test -s "$file" || { echo "::error::$file is missing or empty"; exit 1; }
+          done
+
+  react:
+    name: React ${{ matrix.react }}, Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        react: [17, 18, 19]
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: yarn
+          cache-dependency-path: |
+            yarn.lock
+            compat/*/yarn.lock
+
+      - run: yarn install --frozen-lockfile
+
+      - name: Install React ${{ matrix.react }}
+        if: matrix.react != 18
+        run: yarn --cwd compat/react${{ matrix.react }} install --frozen-lockfile
+
+      - name: Test
+        run: yarn ${{ matrix.react == 18 && 'test' || format('test:react{0}', matrix.react) }}
+
+  typescript:
+    name: TypeScript 5.4+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: yarn
+
+      - run: yarn install --frozen-lockfile
+
+      - name: Cache TypeScript versions
+        uses: actions/cache@v6
+        with:
+          path: ~/.local/share/TSTyche
+          key: tstyche-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+          restore-keys: tstyche-${{ runner.os }}-
+
+      - name: Test types on every TypeScript version
+        run: yarn test:types:all
