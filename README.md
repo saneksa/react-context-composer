@@ -1,4 +1,4 @@
-[![NPM](https://img.shields.io/npm/v/@saneksa/react-context-composer?style=plastic&color=red)](https://npmjs.com/package/@saneksa/react-context-composer/) [![GitHub license](https://img.shields.io/npm/l/@saneksa/react-context-composer?style=plastic)](https://github.com/saneksa/react-context-composer/blob/main/LICENSE)
+[![NPM](https://img.shields.io/npm/v/@saneksa/react-context-composer?style=plastic&color=red)](https://npmjs.com/package/@saneksa/react-context-composer/) [![GitHub license](https://img.shields.io/npm/l/@saneksa/react-context-composer?style=plastic)](https://github.com/saneksa/react-context-composer/blob/main/LICENSE) [![CI](https://img.shields.io/github/actions/workflow/status/saneksa/react-context-composer/ci.yml?branch=main&style=plastic&label=CI)](https://github.com/saneksa/react-context-composer/actions/workflows/ci.yml)
 
 ### Installation
 
