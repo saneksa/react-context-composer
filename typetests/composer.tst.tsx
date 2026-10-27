@@ -1,4 +1,4 @@
-import { createContext, type Context, type JSX, type ReactNode } from "react";
+import React, { createContext, type Context, type JSX, type ReactNode } from "react";
 import { describe, expect, test } from "tstyche";
 import { composeContexts } from "../lib";
 
@@ -29,6 +29,32 @@ const UnionContext = createContext<{ kind: "a"; a: number } | { kind: "b"; b: st
 });
 const UnknownContext = createContext<unknown>(null);
 const AnyContext = createContext<any>(null);
+const InferredContext = createContext({ a: 1, b: "x" });
+const SymbolContext = createContext<symbol>(Symbol("default"));
+const DateContext = createContext(new Date());
+const MapContext = createContext(new Map<string, number>());
+const SetContext = createContext<Set<number>>(new Set());
+const PromiseContext = createContext<Promise<number>>(Promise.resolve(1));
+const RecordContext = createContext<Record<string, number>>({});
+const IndexContext = createContext<{ [key: string]: number; fixed: number }>({ fixed: 1 });
+const ReadonlyObjectContext = createContext<{ readonly a: number }>({ a: 1 });
+const VoidContext = createContext<void>(undefined);
+const NeverContext = createContext<never>(null as never);
+const NullableFunctionContext = createContext<((value: number) => string) | null>(null);
+const CallbacksContext = createContext<{ onChange?: (value: number) => void }>({});
+const ObjectArrayContext = createContext<{ id: number }[]>([]);
+const UnionObjectContext = createContext<{ a: number } | { b: string }>({ a: 1 });
+const GenericFunctionContext = createContext<<T>(value: T) => T>((value) => value);
+const AsyncFunctionContext = createContext<(id: number) => Promise<string>>(async () => "");
+const TemplateContext = createContext<`id-${number}`>("id-1");
+
+class Store {
+  value = 1;
+}
+const ClassContext = createContext(new Store());
+
+type Id = number & { __brand: "id" };
+const BrandContext = createContext<Id>(0 as Id);
 
 describe("return type", () => {
   test("returns a function from children to JSX element", () => {
@@ -387,5 +413,325 @@ describe("list shape", () => {
     composeContexts(NumberContext);
     // @ts-expect-error Expected 1 arguments, but got 0.
     composeContexts();
+  });
+});
+
+describe("inferred context types", () => {
+  test("context type inferred from the default value", () => {
+    composeContexts([[InferredContext, { a: 2, b: "y" }]]);
+
+    // @ts-expect-error Property 'b' is missing in type '{ a: number; }' but required in type '{ a: number; b: string; }'.
+    composeContexts([[InferredContext, { a: 2 }]]);
+  });
+
+  test("context created via React namespace", () => {
+    composeContexts([[React.createContext(0), 1]]);
+
+    // @ts-expect-error Type 'string' is not assignable to type 'number'.
+    composeContexts([[React.createContext(0), "1"]]);
+  });
+});
+
+describe("special primitive types", () => {
+  test("symbol", () => {
+    composeContexts([[SymbolContext, Symbol("value")]]);
+
+    // @ts-expect-error Type 'string' is not assignable to type 'symbol'.
+    composeContexts([[SymbolContext, "value"]]);
+  });
+
+  test("template literal", () => {
+    composeContexts([[TemplateContext, "id-5"]]);
+
+    // @ts-expect-error Type '"id-x"' is not assignable to type '`id-${number}`'.
+    composeContexts([[TemplateContext, "id-x"]]);
+  });
+
+  test("branded type", () => {
+    composeContexts([[BrandContext, 5 as Id]]);
+
+    // @ts-expect-error Type 'number' is not assignable to type 'Id'.
+    composeContexts([[BrandContext, 5]]);
+  });
+
+  test("void", () => {
+    composeContexts([[VoidContext, undefined]]);
+
+    // @ts-expect-error Type 'number' is not assignable to type 'void'.
+    composeContexts([[VoidContext, 1]]);
+  });
+
+  test("never", () => {
+    // @ts-expect-error Type 'number' is not assignable to type 'never'.
+    composeContexts([[NeverContext, 1]]);
+  });
+});
+
+describe("special values", () => {
+  test("any value is accepted by a typed context", () => {
+    const value: any = "not a number";
+
+    composeContexts([[NumberContext, value]]);
+  });
+
+  test("unknown value is rejected by a typed context", () => {
+    const value: unknown = 1;
+
+    // @ts-expect-error Type 'unknown' is not assignable to type 'number'.
+    composeContexts([[NumberContext, value]]);
+  });
+
+  test("never value is accepted by any context", () => {
+    const value = null as never;
+
+    composeContexts([[NumberContext, value]]);
+  });
+
+  test("as const values", () => {
+    composeContexts([[NumberContext, 1 as const]]);
+    composeContexts([[NumberContext, 1] as const]);
+    composeContexts([[LiteralContext, "dark" as const]]);
+  });
+});
+
+describe("built-in objects", () => {
+  test("Date", () => {
+    composeContexts([[DateContext, new Date()]]);
+
+    // @ts-expect-error Type 'string' is not assignable to type 'Date'.
+    composeContexts([[DateContext, "2020-01-01"]]);
+  });
+
+  test("Map and Set", () => {
+    composeContexts([[MapContext, new Map()]]);
+    composeContexts([[SetContext, new Set([1])]]);
+
+    // @ts-expect-error Type 'Map<string, string>' is not assignable to type 'Map<string, number>'.
+    composeContexts([[MapContext, new Map<string, string>()]]);
+    // @ts-expect-error Type 'Set<string>' is not assignable to type 'Set<number>'.
+    composeContexts([[SetContext, new Set(["1"])]]);
+  });
+
+  test("Promise", () => {
+    composeContexts([[PromiseContext, Promise.resolve(2)]]);
+
+    // @ts-expect-error Type 'number' is not assignable to type 'Promise<number>'.
+    composeContexts([[PromiseContext, 1]]);
+    // @ts-expect-error Type 'Promise<string>' is not assignable to type 'Promise<number>'.
+    composeContexts([[PromiseContext, Promise.resolve("1")]]);
+  });
+
+  test("class instance and structural typing", () => {
+    composeContexts([[ClassContext, new Store()]]);
+    composeContexts([[ClassContext, { value: 2 }]]);
+
+    // @ts-expect-error Type 'string' is not assignable to type 'number'.
+    composeContexts([[ClassContext, { value: "1" }]]);
+  });
+});
+
+describe("more object shapes", () => {
+  test("Record", () => {
+    composeContexts([[RecordContext, {}]]);
+    composeContexts([[RecordContext, { x: 1, y: 2 }]]);
+
+    // @ts-expect-error Type 'string' is not assignable to type 'number'.
+    composeContexts([[RecordContext, { x: "1" }]]);
+  });
+
+  test("index signature with a fixed field", () => {
+    composeContexts([[IndexContext, { fixed: 1, other: 2 }]]);
+
+    // @ts-expect-error Type 'string' is not assignable to type 'number'.
+    composeContexts([[IndexContext, { fixed: 1, other: "2" }]]);
+    // @ts-expect-error Property 'fixed' is missing in type '{ other: number; }' but required in type '{ [key: string]:
+    composeContexts([[IndexContext, { other: 2 }]]);
+  });
+
+  test("readonly fields", () => {
+    composeContexts([[ReadonlyObjectContext, { a: 2 }]]);
+  });
+
+  test("non-discriminated union", () => {
+    composeContexts([[UnionObjectContext, { a: 1 }]]);
+    composeContexts([[UnionObjectContext, { b: "x" }]]);
+
+    // @ts-expect-error Object literal may only specify known properties, and 'c' does not exist in
+    composeContexts([[UnionObjectContext, { c: 1 }]]);
+  });
+
+  test("array of objects", () => {
+    composeContexts([[ObjectArrayContext, [{ id: 1 }, { id: 2 }]]]);
+
+    // @ts-expect-error Object literal may only specify known properties, and 'extra' does not exist in type '{ id: number; }'.
+    composeContexts([[ObjectArrayContext, [{ id: 1, extra: true }]]]);
+    // @ts-expect-error Property 'id' is missing in type '{}' but required in type '{ id: number; }'.
+    composeContexts([[ObjectArrayContext, [{}]]]);
+  });
+
+  test("excess properties are allowed for an as const list from a variable", () => {
+    const list = [[ObjectContext, { color: "red", extra: true }]] as const;
+
+    composeContexts(list);
+  });
+});
+
+describe("more function shapes", () => {
+  test("nullable function", () => {
+    composeContexts([[NullableFunctionContext, null]]);
+    composeContexts([
+      [
+        NullableFunctionContext,
+        (value) => {
+          expect(value).type.toBe<number>();
+          return "";
+        },
+      ],
+    ]);
+
+    // @ts-expect-error Type 'undefined' is not assignable to
+    composeContexts([[NullableFunctionContext, undefined]]);
+    // @ts-expect-error Property 'toUpperCase' does not exist on type 'number'.
+    composeContexts([[NullableFunctionContext, (value) => value.toUpperCase()]]);
+  });
+
+  test("optional callback in an object", () => {
+    composeContexts([[CallbacksContext, {}]]);
+    composeContexts([
+      [
+        CallbacksContext,
+        {
+          onChange: (value) => {
+            expect(value).type.toBe<number>();
+          },
+        },
+      ],
+    ]);
+    composeContexts([
+      [
+        CallbacksContext,
+        {
+          onChange(value) {
+            expect(value).type.toBe<number>();
+          },
+        },
+      ],
+    ]);
+
+    // @ts-expect-error Object literal may only specify known properties, but 'onChang' does not exist in
+    composeContexts([[CallbacksContext, { onChang: () => {} }]]);
+  });
+
+  test("async function", () => {
+    composeContexts([
+      [
+        AsyncFunctionContext,
+        async (id) => {
+          expect(id).type.toBe<number>();
+          return id.toFixed();
+        },
+      ],
+    ]);
+
+    // @ts-expect-error Type '(id: number) => string' is not assignable to type '(id: number) => Promise<string>'.
+    composeContexts([[AsyncFunctionContext, (id: number) => id.toFixed()]]);
+    // @ts-expect-error Type 'Promise<number>' is not assignable to type 'Promise<string>'.
+    composeContexts([[AsyncFunctionContext, async (id) => id]]);
+  });
+
+  test("generic function", () => {
+    composeContexts([[GenericFunctionContext, (value) => value]]);
+    composeContexts([[GenericFunctionContext, <T,>(value: T) => value]]);
+
+    // @ts-expect-error Type '(value: number) => number' is not assignable to type '<T>(value: T) => T'.
+    composeContexts([[GenericFunctionContext, (value: number) => value]]);
+  });
+});
+
+describe("more list forms", () => {
+  test("spread of as const lists", () => {
+    const numbers = [[NumberContext, 1]] as const;
+    const strings = [[StringContext, "a"]] as const;
+
+    composeContexts([...numbers, ...strings]);
+    // @ts-expect-error Type 'number' is not assignable to type 'string'.
+    composeContexts([...numbers, ...strings, [StringContext, 1]]);
+  });
+
+  test("tuples stored in variables", () => {
+    const mutable: [Context<number>, number] = [NumberContext, 1];
+    const readonly: readonly [Context<number>, number] = [NumberContext, 1];
+
+    composeContexts([mutable, readonly]);
+  });
+
+  test("tuples declared with as const one by one", () => {
+    composeContexts([[NumberContext, 1] as const, [StringContext, "a"] as const]);
+
+    // @ts-expect-error Type 'number' is not assignable to type 'string'.
+    composeContexts([[NumberContext, 1] as const, [StringContext, 2] as const]);
+  });
+
+  test("readonly typed list", () => {
+    const list: ReadonlyArray<readonly [Context<number>, number]> = [];
+
+    composeContexts(list);
+  });
+
+  test("a list without as const is rejected", () => {
+    const list = [[NumberContext, 1]];
+
+    // @ts-expect-error Argument of type '(number | Context<number>)[][]' is not assignable to parameter of type
+    composeContexts(list);
+  });
+
+  test("a long list", () => {
+    const item = [NumberContext, 1] as const;
+
+    composeContexts([
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+      item,
+    ]);
+  });
+});
+
+function provide<T>(context: Context<T>, value: T) {
+  return composeContexts([
+    [context, value],
+    [StringContext, "a"],
+  ]);
+}
+
+describe("generic wrappers", () => {
+  test("can be used inside a generic function", () => {
+    expect(provide(NumberContext, 1)).type.toBe<(children: ReactNode) => JSX.Element>();
   });
 });
